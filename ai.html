@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Trivia Battle</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #74ebd5, #9face6);
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            margin: 0; 
+        }
+
+        /* --- NAVIGATION BAR --- */
+        nav {
+            background-color: rgba(255, 255, 255, 0.9);
+            width: 100%;
+            position: fixed;
+            top: 0;
+            padding: 15px 0;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        nav a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #333;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+
+        nav a:hover { color: #0984e3; }
+
+        /* --- GAME CARD --- */
+        .game-card { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+            text-align: center; 
+            width: 480px; 
+            margin-top: 80px; 
+        }
+
+        .score-board { 
+            display: flex; 
+            justify-content: space-around; 
+            margin-bottom: 10px; 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 10px; 
+        }
+
+        .score { font-size: 1.8rem; font-weight: bold; color: #0984e3; }
+
+        #streak { font-weight: bold; margin-bottom: 15px; color: #d63031; }
+
+        .question-box { 
+            background: #e1f5fe; 
+            padding: 20px; 
+            border-radius: 10px; 
+            margin-bottom: 20px; 
+            font-weight: bold; 
+            font-size: 1.1rem; 
+            min-height: 50px;
+        }
+
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        button { 
+            padding: 15px; 
+            border: none; 
+            border-radius: 8px; 
+            background: #0984e3; 
+            color: white; 
+            cursor: pointer; 
+            font-size: 1rem; 
+            transition: 0.3s; 
+        }
+
+        button:hover { transform: scale(1.05); background: #0652dd; }
+
+        .correct-flash { background-color: #27ae60 !important; }
+        .wrong-flash { background-color: #d32f2f !important; }
+
+        .summary-list { 
+            text-align: left; 
+            margin-top: 20px; 
+            max-height: 250px; 
+            overflow-y: auto; 
+            border-top: 2px solid #eee; 
+            padding-top: 10px; 
+        }
+
+        .summary-item { padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+        .res-correct { color: #27ae60; font-weight: bold; }
+        .res-wrong { color: #d32f2f; font-weight: bold; }
+
+        .back-link { 
+            margin-top: 20px; 
+            display: inline-block; 
+            color: #636e72; 
+            text-decoration: none; 
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="index.html">Home</a>
+    <a href="resume.html">Resume</a>
+    <a href="fromScratch.html">Travel</a>
+    <a href="ai.html" style="border-bottom: 2px solid #0984e3;">Game</a>
+</nav>
+
+<div class="game-card">
+    <h1>✈️ Trivia Battle</h1>
+    <p>Test your knowledge against the Pilot!</p>
+
+    <div id="start-area">
+        <h3>Select Difficulty</h3>
+        <p>Hard mode has harder questions!</p>
+        <button onclick="startGame('easy')">Easy Flight</button>
+        <button onclick="startGame('hard')" style="background-color: #2d3436;">Hard Flight</button>
+    </div>
+
+    <div id="play-area" style="display:none;">
+        <div class="score-board">
+            <div>You: <div id="u-score" class="score">0</div></div>
+            <div>Pilot: <div id="p-score" class="score">0</div></div>
+        </div>
+        <p id="streak">Streak: 0 🔥</p>
+        <div class="question-box" id="q-text"></div>
+        <div id="btn-grid" class="options-grid"></div>
+    </div>
+
+    <div id="end-area" style="display:none;">
+        <h2 id="final-msg"></h2>
+        <div id="log" class="summary-list"></div>
+        <button onclick="location.reload()" style="margin-top:20px; width: 100%;">New Flight</button>
+    </div>
+
+    <a href="fromScratch.html" class="back-link">← Back to Travel Blog</a>
+</div>
+
+<script>
+let uScore = 0;
+let pScore = 0;
+let idx = 0;
+let streak = 0;
+let results = [];
+let myQuestions = [];
+
+const easyQuestions = [
+    { q: "Which country is home to the Eiffel Tower?", a: "France", opts: ["Germany", "France", "Italy", "Spain"] },
+    { q: "What is the capital of Austria?", a: "Vienna", opts: ["Salzburg", "Vienna", "Innsbruck", "Graz"] },
+    { q: "Hawaii is the ___ state to join the USA.", a: "50th", opts: ["48th", "49th", "50th", "51st"] },
+    { q: "In which ocean is Samoa located?", a: "Pacific", opts: ["Atlantic", "Indian", "Pacific", "Arctic"] }
+];
+
+const hardQuestions = [
+    { q: "Which ocean trench is the deepest?", a: "Mariana Trench", opts: ["Tonga Trench", "Mariana Trench", "Java Trench", "Puerto Rico Trench"] },
+    { q: "What is the capital of Kazakhstan?", a: "Astana", opts: ["Almaty", "Astana", "Tashkent", "Bishkek"] },
+    { q: "Which country has the most islands?", a: "Sweden", opts: ["Indonesia", "Philippines", "Sweden", "Norway"] },
+    { q: "Mount Kilimanjaro is located in which country?", a: "Tanzania", opts: ["Kenya", "Tanzania", "Uganda", "Ethiopia"] }
+];
+
+function startGame(level) {
+    document.getElementById('start-area').style.display = "none";
+    document.getElementById('play-area').style.display = "block";
+    myQuestions = (level === 'easy') ? easyQuestions : hardQuestions;
+    renderQuestion();
+}
+
+function renderQuestion() {
+    const current = myQuestions[idx];
+    document.getElementById('q-text').innerText = current.q;
+    const grid = document.getElementById('btn-grid');
+    grid.innerHTML = "";
+    current.opts.forEach(opt => {
+        const b = document.createElement('button');
+        b.innerText = opt;
+        b.onclick = () => handleChoice(b, opt, current.a, current.q);
+        grid.appendChild(b);
+    });
+}
+
+function handleChoice(clickedBtn, picked, correct, question) {
+    const allButtons = document.querySelectorAll('#btn-grid button');
+    allButtons.forEach(btn => btn.onclick = null);
+
+    const isRight = (picked === correct);
+
+    if (isRight) {
+        streak++;
+        uScore += (1 + streak);
+        document.getElementById('u-score').innerText = uScore;
+        clickedBtn.classList.add('correct-flash');
+    } else {
+        streak = 0;
+        pScore++;
+        document.getElementById('p-score').innerText = pScore;
+        clickedBtn.classList.add('wrong-flash');
+        allButtons.forEach(btn => {
+            if (btn.innerText === correct) btn.classList.add('correct-flash');
+        });
+    }
+
+    document.getElementById('streak').innerText = "Streak: " + streak + (streak > 2 ? " 🔥" : "");
+
+    results.push({ q: question, status: isRight ? "CORRECT" : "WRONG", correctAns: correct });
+
+    setTimeout(() => {
+        idx++;
+        if (idx < myQuestions.length) {
+            renderQuestion();
+        } else {
+            showFinal();
+        }
+    }, 800);
+}
+
+function showFinal() {
+    document.getElementById('play-area').style.display = "none";
+    document.getElementById('end-area').style.display = "block";
+    document.getElementById('final-msg').innerText = uScore > pScore ? "You Win! ✈️" : "Pilot Wins! 🛫";
+    const log = document.getElementById('log');
+    log.innerHTML = "";
+    results.forEach(r => {
+        const div = document.createElement('div');
+        div.className = "summary-item";
+        div.innerHTML = `${r.q} — <span class="${r.status === 'CORRECT' ? 'res-correct' : 'res-wrong'}">${r.status}</span> (Ans: ${r.correctAns})`;
+        log.appendChild(div);
+    });
+}
+</script>
+</body>
+</html>
